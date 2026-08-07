@@ -1,0 +1,1 @@
+export default function Brand({compact=false}){return <div className="brand"><svg viewBox="0 0 52 36" aria-hidden="true"><path d="M2 18S11 4 26 4s24 14 24 14-9 14-24 14S2 18 2 18Z"/><circle cx="26" cy="18" r="8"/><circle className="glint" cx="29" cy="15" r="2"/></svg>{!compact&&<div><b>NIVECO</b><span>INSIGHTS</span><i></i><i></i><i></i></div>}</div>}
