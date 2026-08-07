@@ -1,0 +1,14 @@
+NIVECO PRO 7.2 FIREBASE
+
+Project ID: niveco-ipo-pro
+
+Deploy commands (PC terminal):
+1. npm install -g firebase-tools
+2. firebase login
+3. આ folderમાં terminal ખોલો
+4. firebase deploy --only hosting
+
+Firestore collection: ipos
+App Firestore ને primary source તરીકે વાંચે છે. ત્યારબાદ /api/ipos અને data/ipos.json fallback છે.
+
+મહત્વનું: Firestore Rules માં public read allow હોવું જોઈએ. Production માં write માત્ર admin/backendથી રાખવો.

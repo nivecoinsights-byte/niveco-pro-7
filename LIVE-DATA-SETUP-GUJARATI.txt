@@ -1,0 +1,21 @@
+NIVECO PRO 6.3 LIVE DATA
+
+આ વર્ઝનમાં Cloudflare Pages Function ઉમેરેલ છે.
+એપ HTTPS પર deploy થયા પછી:
+- એપ ખુલતાં live IPO data auto-sync થશે.
+- દર 30 મિનિટે ફરી refresh થશે.
+- Refresh બટન દબાવવાથી તરત sync થશે.
+- અગાઉનું data deviceમાં cache રહેશે.
+
+મહત્વપૂર્ણ:
+મોબાઇલમાં content:// દ્વારા index.html સીધી ખોલો ત્યારે live API ચલશે નહીં.
+Live data માટે આખો project Cloudflare Pages પર Functions સાથે deploy કરવો જરૂરી છે.
+
+Codex/PC terminal deployment:
+1) ZIP extract કરો.
+2) folderમાં terminal ખોલો.
+3) npm install -g wrangler
+4) wrangler login
+5) wrangler pages deploy . --project-name niveco-insights
+
+Deployment પછી મળેલી https://...pages.dev URL ખોલો.
