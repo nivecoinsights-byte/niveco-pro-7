@@ -19,6 +19,6 @@
     { "source": "/assets/icons/niveco-icon-144.png", "destination": "/niveco-icon-144.png" },
     { "source": "/assets/icons/niveco-icon-192.png", "destination": "/niveco-icon-192.png" },
     { "source": "/assets/icons/niveco-icon-512.png", "destination": "/niveco-icon-512.png" },
-    { "source": "/((?!assets/|data/|templates/|functions/|manifest.webmanifest|service-worker.js|config.js|app.js|styles.css|niveco-eye-transparent.png|niveco-icon-48.png|niveco-icon-72.png|niveco-icon-96.png|niveco-icon-144.png|niveco-icon-192.png|niveco-icon-512.png).*)", "destination": "/index.html" }
+    { "source": "/((?!api/|assets/|data/|templates/|functions/|manifest.webmanifest|service-worker.js|config.js|app.js|styles.css|niveco-eye-transparent.png|niveco-icon-48.png|niveco-icon-72.png|niveco-icon-96.png|niveco-icon-144.png|niveco-icon-192.png|niveco-icon-512.png).*)", "destination": "/index.html" }
   ]
 }
