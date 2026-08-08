@@ -1,0 +1,57 @@
+name: Build NIVECO Flutter APK
+
+on:
+  push:
+    branches:
+      - flutter-rebuild
+  workflow_dispatch:
+
+jobs:
+  build-android:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Create clean Android shell
+        run: |
+          flutter --version
+          rm -rf build_app
+          flutter create --platforms=android --project-name niveco_insights build_app
+          rm -rf build_app/lib
+          cp -R flutter_app/lib build_app/lib
+          cp flutter_app/pubspec.yaml build_app/pubspec.yaml
+          mkdir -p build_app/assets
+          cp niveco-eye-transparent.png build_app/assets/niveco-eye.png
+          sed -i 's/niveco-eye.jpg/niveco-eye.png/g' build_app/lib/main.dart
+
+      - name: Get packages
+        working-directory: build_app
+        run: flutter pub get
+
+      - name: Analyze
+        working-directory: build_app
+        run: flutter analyze
+
+      - name: Build APK
+        working-directory: build_app
+        run: flutter build apk --debug
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: niveco-insights-flutter-debug-apk
+          path: build_app/build/app/outputs/flutter-apk/app-debug.apk
+          if-no-files-found: error
