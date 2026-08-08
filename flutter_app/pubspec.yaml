@@ -12,4 +12,4 @@ dependencies:
 flutter:
   uses-material-design: true
   assets:
-    - assets/niveco-eye.jpg
+    - assets/niveco-eye.png
