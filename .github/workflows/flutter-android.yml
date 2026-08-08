@@ -35,7 +35,8 @@ jobs:
           cp flutter_app/pubspec.yaml build_app/pubspec.yaml
           mkdir -p build_app/assets
           cp niveco-eye-transparent.png build_app/assets/niveco-eye.png
-          sed -i 's/niveco-eye.jpg/niveco-eye.png/g' build_app/lib/main.dart
+          rm -rf build_app/test
+          rm -f build_app/analysis_options.yaml
 
       - name: Get packages
         working-directory: build_app
