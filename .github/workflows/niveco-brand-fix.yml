@@ -16,24 +16,31 @@ jobs:
       - uses: actions/checkout@v4
         with:
           ref: flutter-rebuild
-      - name: Refine eye and three-line E
+      - name: Make NIVECO header responsive
         shell: python
         run: |
           from pathlib import Path
           p = Path('flutter_app/lib/main.dart')
           s = p.read_text()
-          s = s.replace("Image.asset('assets/niveco-eye.png', width: 42, height: 42),", "Image.asset('assets/niveco-eye.png', width: 54, height: 54, fit: BoxFit.contain),")
-          s = s.replace("const SizedBox(width: 10),", "const SizedBox(width: 8),", 1)
-          s = s.replace("fontSize: 26, height: 1", "fontSize: 27, height: 1")
-          s = s.replace("SizedBox(width: 22, height: 25, child: CustomPaint(painter: _ThreeLineEPainter(ink)))", "SizedBox(width: 25, height: 27, child: CustomPaint(painter: _ThreeLineEPainter(ink)))")
-          s = s.replace("final p = Paint()..strokeCap = StrokeCap.square..strokeWidth = 5;", "final p = Paint()..style = PaintingStyle.fill;")
-          s = s.replace("p.color = ink;\n    canvas.drawLine(Offset(0, 3), Offset(size.width, 3), p);\n    p.color = const Color(0xFF00CBEA);\n    canvas.drawLine(Offset(0, size.height / 2), Offset(size.width * .82, size.height / 2), p);\n    p.color = ink;\n    canvas.drawLine(Offset(0, size.height - 3), Offset(size.width, size.height - 3), p);", "final barHeight = size.height * .20;\n    p.color = ink;\n    canvas.drawRRect(RRect.fromRectAndRadius(Rect.fromLTWH(0, 0, size.width, barHeight), const Radius.circular(1.2)), p);\n    p.color = const Color(0xFF00CBEA);\n    canvas.drawRRect(RRect.fromRectAndRadius(Rect.fromLTWH(0, (size.height - barHeight) / 2, size.width * .78, barHeight), const Radius.circular(1.2)), p);\n    p.color = ink;\n    canvas.drawRRect(RRect.fromRectAndRadius(Rect.fromLTWH(0, size.height - barHeight, size.width, barHeight), const Radius.circular(1.2)), p);")
+
+          # Keep all three E bars exactly the same width.
+          s = s.replace("Rect.fromLTWH(0, (size.height - barHeight) / 2, size.width * .78, barHeight)",
+                        "Rect.fromLTWH(0, (size.height - barHeight) / 2, size.width, barHeight)")
+
+          # Scale the complete brand mark only when the available AppBar width is tight.
+          old_title = "title:NivecoWordmark(dark:widget.dark),actions:[IconButton(onPressed:()=>widget.onThemeChanged(!widget.dark),icon:Icon(widget.dark?Icons.light_mode_outlined:Icons.dark_mode_outlined)),TextButton(onPressed:()=>widget.onLanguageChanged(!widget.gujarati),child:Text(widget.gujarati?'EN':'ગુજરાતી',style:const TextStyle(fontWeight:FontWeight.w700))),const SizedBox(width:4)]"
+          new_title = "title:FittedBox(fit:BoxFit.scaleDown,alignment:Alignment.centerLeft,child:NivecoWordmark(dark:widget.dark)),actions:[IconButton(visualDensity:VisualDensity.compact,onPressed:()=>widget.onThemeChanged(!widget.dark),icon:Icon(widget.dark?Icons.light_mode_outlined:Icons.dark_mode_outlined)),TextButton(style:TextButton.styleFrom(padding:const EdgeInsets.symmetric(horizontal:6),minimumSize:Size.zero,tapTargetSize:MaterialTapTargetSize.shrinkWrap),onPressed:()=>widget.onLanguageChanged(!widget.gujarati),child:Text(widget.gujarati?'EN':'ગુજરાતી',style:const TextStyle(fontWeight:FontWeight.w700))),const SizedBox(width:2)]"
+          if old_title not in s:
+              raise SystemExit('Expected AppBar header pattern not found')
+          s = s.replace(old_title, new_title, 1)
+          s = s.replace("titleSpacing:14", "titleSpacing:8", 1)
           p.write_text(s)
-      - name: Commit brand refinement
+
+      - name: Commit responsive header fix
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add flutter_app/lib/main.dart
           git diff --cached --quiet && exit 0
-          git commit -m "Refine NIVECO eye and three-line E branding"
+          git commit -m "Fix NIVECO header overflow and equalize E bars"
           git push origin flutter-rebuild
