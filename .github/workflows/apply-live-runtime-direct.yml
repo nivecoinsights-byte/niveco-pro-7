@@ -1,0 +1,154 @@
+name: Apply Live IPO Runtime Direct
+
+on:
+  push:
+    branches: [flutter-rebuild]
+    paths:
+      - '.github/workflows/apply-live-runtime-direct.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  patch-live-runtime:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: flutter-rebuild
+
+      - name: Patch current Flutter app directly
+        shell: python
+        run: |
+          from pathlib import Path
+          import re
+
+          p = Path('flutter_app/lib/main.dart')
+          s = p.read_text()
+
+          # Imports
+          if "import 'dart:async';" not in s:
+              s = "import 'dart:async';\n" + s
+          if "import 'live_ipo_service.dart';" not in s:
+              s = s.replace("import 'package:flutter/material.dart';", "import 'package:flutter/material.dart';\nimport 'live_ipo_service.dart';", 1)
+
+          # Make data mutable.
+          s = s.replace('const demoIpos=<Ipo>[', 'List<Ipo> demoIpos=<Ipo>[', 1)
+
+          # Add mapper before NivecoShell if missing.
+          if '_ipoFromLive(Map<String, dynamic> x)' not in s:
+              marker = '\nclass NivecoShell extends StatefulWidget'
+              helper = r'''
+
+String _liveDate(dynamic raw) {
+  final value = raw?.toString().trim() ?? '';
+  if (value.isEmpty) return '—';
+  final d = DateTime.tryParse(value);
+  if (d == null) return value;
+  const m = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  return '${d.day.toString().padLeft(2, '0')} ${m[d.month - 1]} ${d.year}';
+}
+
+String _liveIssueSize(dynamic raw) {
+  if (raw == null) return '—';
+  final n = num.tryParse(raw.toString());
+  if (n == null || n <= 0) return '—';
+  return n >= 10000000 ? '₹${(n / 10000000).toStringAsFixed(0)} Cr' : '₹${n.toStringAsFixed(0)}';
+}
+
+Ipo _ipoFromLive(Map<String, dynamic> x) {
+  final rawStatus = (x['status'] ?? '').toString().toLowerCase();
+  final status = rawStatus == 'listed' ? 'Listed' : rawStatus == 'upcoming' ? 'Upcoming' : 'Open';
+  final type = (x['issueType'] ?? '').toString().toUpperCase().contains('SME') ? 'SME' : 'MAINBOARD';
+  final subscription = double.tryParse((x['subscription'] ?? 0).toString()) ?? 0;
+  final listingPrice = int.tryParse((x['listingPrice'] ?? '').toString());
+  return Ipo(
+    id: (x['id'] ?? x['symbol'] ?? x['company'] ?? '').toString(),
+    name: (x['company'] ?? 'IPO').toString(),
+    type: type,
+    status: status,
+    priceBand: (x['priceBand'] ?? 'TBA').toString(),
+    lotSize: int.tryParse((x['lotSize'] ?? 0).toString()) ?? 0,
+    subscription: subscription,
+    gmp: 0,
+    gmpPct: 0,
+    openDate: _liveDate(x['openDate']),
+    closeDate: _liveDate(x['closeDate']),
+    allotmentDate: _liveDate(x['allotmentDate']),
+    listingDate: _liveDate(x['listingDate']),
+    issueSize: _liveIssueSize(x['issueSize']),
+    listingPrice: listingPrice,
+  );
+}
+'''
+              if marker not in s:
+                  raise SystemExit('NivecoShell marker not found')
+              s = s.replace(marker, helper + marker, 1)
+
+          # Replace compact shell state opener with live-aware state.
+          old = "class _NivecoShellState extends State<NivecoShell>{int index=0;final saved=<String>{};String tr(String en,String gu)=>widget.gujarati?gu:en;@override Widget build(BuildContext context){"
+          new = """class _NivecoShellState extends State<NivecoShell>{
+  int index=0;
+  final saved=<String>{};
+  final LiveIpoService _liveIpoService = LiveIpoService();
+  Timer? _liveTimer;
+  bool liveLoading = true;
+  String? liveError;
+  DateTime? liveUpdatedAt;
+
+  String tr(String en,String gu)=>widget.gujarati?gu:en;
+
+  @override
+  void initState(){
+    super.initState();
+    _syncLiveIpos();
+    _liveTimer=Timer.periodic(const Duration(minutes:30),(_)=>_syncLiveIpos());
+  }
+
+  Future<void> _syncLiveIpos() async {
+    if(mounted) setState(()=>liveLoading=true);
+    try{
+      final response=await _liveIpoService.fetch();
+      final mapped=response.records.map(_ipoFromLive).where((i)=>i.name.trim().isNotEmpty).toList();
+      if(!mounted)return;
+      setState((){
+        if(mapped.isNotEmpty) demoIpos=mapped;
+        liveUpdatedAt=response.updatedAt ?? DateTime.now();
+        liveError=mapped.isEmpty?'Live API returned no IPO records':null;
+        liveLoading=false;
+      });
+    }catch(e){
+      if(!mounted)return;
+      setState((){
+        liveError=e.toString();
+        liveLoading=false;
+      });
+    }
+  }
+
+  @override
+  void dispose(){_liveTimer?.cancel();super.dispose();}
+
+  @override Widget build(BuildContext context){"""
+          if old not in s:
+              raise SystemExit('Current NivecoShell state anchor not found')
+          s = s.replace(old, new, 1)
+
+          # Make the refresh icon actually refresh in Home by replacing the static icon once.
+          s = s.replace("const Icon(Icons.refresh)])))", "IconButton(onPressed:_syncLiveIpos,icon:const Icon(Icons.refresh))])))", 1) if '_syncLiveIpos' in s else s
+
+          p.write_text(s)
+
+      - name: Format
+        run: |
+          dart format flutter_app/lib/main.dart flutter_app/lib/live_ipo_service.dart || true
+
+      - name: Commit patched runtime
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add flutter_app/lib/main.dart
+          git diff --cached --quiet && exit 0
+          git commit -m "Connect current Flutter shell to live IPO runtime"
+          git push origin flutter-rebuild
