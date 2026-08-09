@@ -38,13 +38,13 @@ class NivecoWordmark extends StatelessWidget {
   Widget build(BuildContext context) {
     final ink = dark ? Colors.white : const Color(0xFF07152F);
     return Row(mainAxisSize: MainAxisSize.min, children: [
-      Image.asset('assets/niveco-eye.png', width: 42, height: 42),
-      const SizedBox(width: 10),
+      Image.asset('assets/niveco-eye.png', width: 54, height: 54, fit: BoxFit.contain),
+      const SizedBox(width: 8),
       Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
         Row(mainAxisSize: MainAxisSize.min, children: [
-          Text('NIV', style: TextStyle(color: ink, fontWeight: FontWeight.w900, letterSpacing: 3, fontSize: 26, height: 1)),
-          Padding(padding: const EdgeInsets.symmetric(horizontal: 3), child: SizedBox(width: 22, height: 25, child: CustomPaint(painter: _ThreeLineEPainter(ink)))),
-          Text('CO', style: TextStyle(color: ink, fontWeight: FontWeight.w900, letterSpacing: 3, fontSize: 26, height: 1)),
+          Text('NIV', style: TextStyle(color: ink, fontWeight: FontWeight.w900, letterSpacing: 3, fontSize: 27, height: 1)),
+          Padding(padding: const EdgeInsets.symmetric(horizontal: 3), child: SizedBox(width: 25, height: 27, child: CustomPaint(painter: _ThreeLineEPainter(ink)))),
+          Text('CO', style: TextStyle(color: ink, fontWeight: FontWeight.w900, letterSpacing: 3, fontSize: 27, height: 1)),
         ]),
         const SizedBox(height: 5),
         const Text('IPO & MARKET INSIGHTS', style: TextStyle(fontSize: 9.5, letterSpacing: 1.2, color: Colors.blueGrey, fontWeight: FontWeight.w600)),
@@ -58,13 +58,14 @@ class _ThreeLineEPainter extends CustomPainter {
   final Color ink;
   @override
   void paint(Canvas canvas, Size size) {
-    final p = Paint()..strokeCap = StrokeCap.square..strokeWidth = 5;
+    final p = Paint()..style = PaintingStyle.fill;
+    final barHeight = size.height * .20;
     p.color = ink;
-    canvas.drawLine(Offset(0, 3), Offset(size.width, 3), p);
+    canvas.drawRRect(RRect.fromRectAndRadius(Rect.fromLTWH(0, 0, size.width, barHeight), const Radius.circular(1.2)), p);
     p.color = const Color(0xFF00CBEA);
-    canvas.drawLine(Offset(0, size.height / 2), Offset(size.width * .82, size.height / 2), p);
+    canvas.drawRRect(RRect.fromRectAndRadius(Rect.fromLTWH(0, (size.height - barHeight) / 2, size.width * .78, barHeight), const Radius.circular(1.2)), p);
     p.color = ink;
-    canvas.drawLine(Offset(0, size.height - 3), Offset(size.width, size.height - 3), p);
+    canvas.drawRRect(RRect.fromRectAndRadius(Rect.fromLTWH(0, size.height - barHeight, size.width, barHeight), const Radius.circular(1.2)), p);
   }
   @override
   bool shouldRepaint(covariant _ThreeLineEPainter oldDelegate) => oldDelegate.ink != ink;
