@@ -1,0 +1,39 @@
+name: Fix NIVECO Header Overflow
+
+on:
+  push:
+    branches: [flutter-rebuild]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  fix-header:
+    if: ${{ !contains(github.event.head_commit.message || '', 'Apply responsive NIVECO header fix') }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: flutter-rebuild
+      - name: Patch Flutter header responsively
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path('flutter_app/lib/main.dart')
+          s = p.read_text()
+          old = "return Scaffold(appBar:AppBar(toolbarHeight:88,backgroundColor:widget.dark?const Color(0xFF071827):Colors.white,titleSpacing:8,title:FittedBox(fit:BoxFit.scaleDown,alignment:Alignment.centerLeft,child:NivecoWordmark(dark:widget.dark)),actions:[IconButton(visualDensity:VisualDensity.compact,onPressed:()=>widget.onThemeChanged(!widget.dark),icon:Icon(widget.dark?Icons.light_mode_outlined:Icons.dark_mode_outlined)),TextButton(style:TextButton.styleFrom(padding:const EdgeInsets.symmetric(horizontal:6),minimumSize:Size.zero,tapTargetSize:MaterialTapTargetSize.shrinkWrap),onPressed:()=>widget.onLanguageChanged(!widget.gujarati),child:Text(widget.gujarati?'EN':'ગુજરાતી',style:const TextStyle(fontWeight:FontWeight.w700))),const SizedBox(width:2)],),"
+          new = "return Scaffold(appBar:AppBar(toolbarHeight:88,backgroundColor:widget.dark?const Color(0xFF071827):Colors.white,titleSpacing:6,title:LayoutBuilder(builder:(context,c)=>SizedBox(width:c.maxWidth,child:Align(alignment:Alignment.centerLeft,child:FittedBox(fit:BoxFit.scaleDown,alignment:Alignment.centerLeft,child:NivecoWordmark(dark:widget.dark))))),actions:[SizedBox(width:42,child:IconButton(padding:EdgeInsets.zero,visualDensity:VisualDensity.compact,onPressed:()=>widget.onThemeChanged(!widget.dark),icon:Icon(widget.dark?Icons.light_mode_outlined:Icons.dark_mode_outlined))),ConstrainedBox(constraints:const BoxConstraints(maxWidth:72),child:TextButton(style:TextButton.styleFrom(padding:const EdgeInsets.symmetric(horizontal:4),minimumSize:Size.zero,tapTargetSize:MaterialTapTargetSize.shrinkWrap),onPressed:()=>widget.onLanguageChanged(!widget.gujarati),child:FittedBox(fit:BoxFit.scaleDown,child:Text(widget.gujarati?'EN':'ગુજરાતી',style:const TextStyle(fontWeight:FontWeight.w700))))),const SizedBox(width:2)],),"
+          if old not in s:
+              raise SystemExit('Expected AppBar block not found; refusing unsafe patch')
+          s = s.replace(old, new, 1)
+          p.write_text(s)
+          PY
+      - name: Commit fix
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add flutter_app/lib/main.dart
+          git diff --cached --quiet && exit 0
+          git commit -m "Apply responsive NIVECO header fix"
+          git push origin flutter-rebuild
