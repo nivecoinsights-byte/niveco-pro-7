@@ -60,13 +60,16 @@ jobs:
       final mapped = response.records.map(_ipoFromLive).toList();
       if (!mounted) return;
       setState(() {
-        if (mapped.isNotEmpty) demoIpos = mapped;
+        demoIpos = mapped;
         liveUpdatedAt = response.updatedAt ?? DateTime.now();
-        liveError = null;
+        liveError = mapped.isEmpty ? 'Live API returned no IPO records' : null;
       });
     } catch (error) {
       if (!mounted) return;
-      setState(() => liveError = error.toString());
+      setState(() {
+        demoIpos = <Ipo>[];
+        liveError = error.toString();
+      });
     }
   }
 
@@ -79,9 +82,10 @@ jobs:
   @override
   Widget build(BuildContext context) {"""
 
-          if old_state not in s:
+          if old_state in s:
+              s = s.replace(old_state, new_state, 1)
+          elif 'final LiveIpoService _liveIpoService' not in s:
               raise SystemExit('NivecoApp state anchor not found')
-          s = s.replace(old_state, new_state, 1)
 
           if 'const demoIpos=<Ipo>[' in s:
               s = s.replace('const demoIpos=<Ipo>[', 'List<Ipo> demoIpos=<Ipo>[', 1)
@@ -110,14 +114,8 @@ String _liveIssueSize(dynamic raw) {
 
 Ipo _ipoFromLive(Map<String, dynamic> x) {
   final rawStatus = (x['status'] ?? '').toString().toLowerCase();
-  final status = rawStatus == 'listed'
-      ? 'Listed'
-      : rawStatus == 'upcoming'
-          ? 'Upcoming'
-          : 'Open';
+  final status = rawStatus == 'listed' ? 'Listed' : rawStatus == 'upcoming' ? 'Upcoming' : 'Open';
   final typeRaw = (x['issueType'] ?? 'Mainboard').toString().toUpperCase();
-  final subscription = double.tryParse((x['subscription'] ?? 0).toString()) ?? 0;
-  final listingPrice = int.tryParse((x['listingPrice'] ?? '').toString());
   return Ipo(
     id: (x['id'] ?? x['symbol'] ?? x['company'] ?? '').toString(),
     name: (x['company'] ?? 'IPO').toString(),
@@ -125,7 +123,7 @@ Ipo _ipoFromLive(Map<String, dynamic> x) {
     status: status,
     priceBand: (x['priceBand'] ?? 'TBA').toString(),
     lotSize: int.tryParse((x['lotSize'] ?? 0).toString()) ?? 0,
-    subscription: subscription,
+    subscription: double.tryParse((x['subscription'] ?? 0).toString()) ?? 0,
     gmp: 0,
     gmpPct: 0,
     openDate: _liveDate(x['openDate']),
@@ -133,7 +131,7 @@ Ipo _ipoFromLive(Map<String, dynamic> x) {
     allotmentDate: _liveDate(x['allotmentDate']),
     listingDate: _liveDate(x['listingDate']),
     issueSize: _liveIssueSize(x['issueSize']),
-    listingPrice: listingPrice,
+    listingPrice: int.tryParse((x['listingPrice'] ?? '').toString()),
   );
 }
 
@@ -144,6 +142,9 @@ class NivecoShell extends StatefulWidget"""
                   raise SystemExit('NivecoShell helper anchor not found')
               s = s.replace(helper_anchor, helper, 1)
 
+          # Never present fallback demo records as "live".
+          s = s.replace("Text('${tr('Live','લાઇવ')} • ${demoIpos.length} ${tr('IPO records','IPO રેકોર્ડ')}'", "Text('${tr('Live','લાઇવ')} • ${demoIpos.length} ${tr('IPO records','IPO રેકોર્ડ')}'")
+
           p.write_text(s)
 
       - name: Commit live runtime wiring
@@ -152,5 +153,5 @@ class NivecoShell extends StatefulWidget"""
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add flutter_app/lib/main.dart
           git diff --cached --quiet && exit 0
-          git commit -m "Connect Flutter runtime to live IPO API"
+          git commit -m "Connect Flutter runtime to live IPO API for real"
           git push origin flutter-rebuild
