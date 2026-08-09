@@ -37,7 +37,16 @@ jobs:
           cp niveco-eye-transparent.png build_app/assets/niveco-eye.png
           rm -rf build_app/test
           rm -f build_app/analysis_options.yaml
+
+          # NIVECO in-app header: larger professional eye, keep native three-line E wordmark.
+          sed -i "s/width: 54, height: 54/width: 66, height: 66/" build_app/lib/main.dart
           sed -i "s/style: const ButtonStyle(visualDensity: VisualDensity(vertical: 5))/style: const ButtonStyle(visualDensity: VisualDensity(vertical: 4))/" build_app/lib/main.dart
+
+          # Android launcher branding: app name NIVECO and eye-only icon (no Flutter mark).
+          mkdir -p build_app/android/app/src/main/res/drawable
+          cp niveco-eye-transparent.png build_app/android/app/src/main/res/drawable/niveco_eye.png
+          sed -i 's/android:label="niveco_insights"/android:label="NIVECO"/' build_app/android/app/src/main/AndroidManifest.xml
+          sed -i 's#android:icon="@mipmap/ic_launcher"#android:icon="@drawable/niveco_eye"#' build_app/android/app/src/main/AndroidManifest.xml
 
       - name: Get packages
         working-directory: build_app
