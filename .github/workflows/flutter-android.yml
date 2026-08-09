@@ -38,8 +38,12 @@ jobs:
           rm -rf build_app/test
           rm -f build_app/analysis_options.yaml
 
-          # NIVECO in-app header: larger professional eye, keep native three-line E wordmark.
-          sed -i "s/width: 54, height: 54/width: 66, height: 66/" build_app/lib/main.dart
+          # NIVECO in-app header: larger professional eye.
+          sed -i "s/width: 54, height: 54/width: 72, height: 72/" build_app/lib/main.dart
+
+          # NIVECO three-line E: all 3 bars exactly equal in width and thickness.
+          sed -i "s/size.width \* .78/size.width/" build_app/lib/main.dart
+
           sed -i "s/style: const ButtonStyle(visualDensity: VisualDensity(vertical: 5))/style: const ButtonStyle(visualDensity: VisualDensity(vertical: 4))/" build_app/lib/main.dart
 
           # Android launcher branding: app name NIVECO and eye-only icon (no Flutter mark).
