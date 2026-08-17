@@ -1,7 +1,12 @@
 // NIVECO PRO 7.3 public runtime configuration.
-// Firebase project ID is not a secret. Do not put service-account private keys here.
+// Firebase web configuration is public client-side configuration. Never put service-account private keys here.
 window.NIVECO_CONFIG = Object.freeze({
-  firebaseProjectId: 'niveco-insights-4254b'
+  firebaseApiKey: 'AIzaSyCWbcm9rxiPOMmjJ5MDdpP34tydUaPzkZ4',
+  firebaseAuthDomain: 'niveco-insights.firebaseapp.com',
+  firebaseProjectId: 'niveco-insights',
+  firebaseStorageBucket: 'niveco-insights.firebasestorage.app',
+  firebaseMessagingSenderId: '1028919515058',
+  firebaseAppId: '1:1028919515058:web:4dcc86755d9eb34da236ab'
 });
 
 // Startup safety patch: never let a broken/slow script trap the app behind the splash.
