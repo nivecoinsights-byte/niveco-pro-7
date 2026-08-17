@@ -1,0 +1,72 @@
+name: Build NIVECO Flutter APK
+
+on:
+  push:
+    branches:
+      - flutter-rebuild
+  workflow_dispatch:
+
+jobs:
+  build-android:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Java
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Create clean Android shell
+        run: |
+          flutter --version
+          rm -rf build_app
+          flutter create --platforms=android --project-name niveco_insights build_app
+          rm -rf build_app/lib
+          cp -R flutter_app/lib build_app/lib
+          cp flutter_app/pubspec.yaml build_app/pubspec.yaml
+          mkdir -p build_app/assets
+          cp niveco-eye-transparent.png build_app/assets/niveco-eye.png
+          rm -rf build_app/test
+          rm -f build_app/analysis_options.yaml
+
+          # NIVECO in-app header: larger professional eye.
+          sed -i "s/width: 54, height: 54/width: 72, height: 72/" build_app/lib/main.dart
+
+          # NIVECO three-line E: all 3 bars exactly equal in width and thickness.
+          sed -i "s/size.width \* .78/size.width/" build_app/lib/main.dart
+
+          sed -i "s/style: const ButtonStyle(visualDensity: VisualDensity(vertical: 5))/style: const ButtonStyle(visualDensity: VisualDensity(vertical: 4))/" build_app/lib/main.dart
+
+          # Android launcher branding: app name NIVECO and eye-only icon (no Flutter mark).
+          mkdir -p build_app/android/app/src/main/res/drawable
+          cp niveco-eye-transparent.png build_app/android/app/src/main/res/drawable/niveco_eye.png
+          sed -i 's/android:label="niveco_insights"/android:label="NIVECO"/' build_app/android/app/src/main/AndroidManifest.xml
+          sed -i 's#android:icon="@mipmap/ic_launcher"#android:icon="@drawable/niveco_eye"#' build_app/android/app/src/main/AndroidManifest.xml
+
+      - name: Get packages
+        working-directory: build_app
+        run: flutter pub get
+
+      - name: Analyze
+        working-directory: build_app
+        run: flutter analyze
+
+      - name: Build APK
+        working-directory: build_app
+        run: flutter build apk --debug
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: niveco-insights-flutter-debug-apk
+          path: build_app/build/app/outputs/flutter-apk/app-debug.apk
+          if-no-files-found: error

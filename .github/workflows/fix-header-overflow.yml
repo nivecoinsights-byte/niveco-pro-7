@@ -1,0 +1,14 @@
+name: Fix NIVECO Header Overflow
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  header-status:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Header already migrated
+        run: echo "NIVECO header is already using the responsive PreferredSize layout. No legacy patch required."

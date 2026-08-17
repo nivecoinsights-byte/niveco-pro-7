@@ -1,0 +1,157 @@
+name: Wire Flutter Live IPO Data V2
+
+on:
+  push:
+    branches: [flutter-rebuild]
+    paths:
+      - '.github/workflows/wire-live-data-v2.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  wire-live-data:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: flutter-rebuild
+
+      - name: Patch Flutter runtime live sync
+        shell: python
+        run: |
+          from pathlib import Path
+
+          p = Path('flutter_app/lib/main.dart')
+          s = p.read_text()
+
+          if "import 'dart:async';" not in s:
+              s = "import 'dart:async';\n\n" + s
+          if "import 'live_ipo_service.dart';" not in s:
+              marker = "import 'package:flutter/material.dart';\n"
+              s = s.replace(marker, marker + "\nimport 'live_ipo_service.dart';\n", 1)
+
+          old_state = """class _NivecoAppState extends State<NivecoApp> {
+  bool gujarati = false;
+  bool dark = false;
+
+  @override
+  Widget build(BuildContext context) {"""
+
+          new_state = """class _NivecoAppState extends State<NivecoApp> {
+  bool gujarati = false;
+  bool dark = false;
+  final LiveIpoService _liveIpoService = LiveIpoService();
+  Timer? _liveTimer;
+  String? liveError;
+  DateTime? liveUpdatedAt;
+
+  @override
+  void initState() {
+    super.initState();
+    _syncLiveIpos();
+    _liveTimer = Timer.periodic(const Duration(minutes: 30), (_) => _syncLiveIpos());
+  }
+
+  Future<void> _syncLiveIpos() async {
+    try {
+      final response = await _liveIpoService.fetch();
+      final mapped = response.records.map(_ipoFromLive).toList();
+      if (!mounted) return;
+      setState(() {
+        demoIpos = mapped;
+        liveUpdatedAt = response.updatedAt ?? DateTime.now();
+        liveError = mapped.isEmpty ? 'Live API returned no IPO records' : null;
+      });
+    } catch (error) {
+      if (!mounted) return;
+      setState(() {
+        demoIpos = <Ipo>[];
+        liveError = error.toString();
+      });
+    }
+  }
+
+  @override
+  void dispose() {
+    _liveTimer?.cancel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {"""
+
+          if old_state in s:
+              s = s.replace(old_state, new_state, 1)
+          elif 'final LiveIpoService _liveIpoService' not in s:
+              raise SystemExit('NivecoApp state anchor not found')
+
+          if 'const demoIpos=<Ipo>[' in s:
+              s = s.replace('const demoIpos=<Ipo>[', 'List<Ipo> demoIpos=<Ipo>[', 1)
+          elif 'List<Ipo> demoIpos=<Ipo>[' not in s:
+              raise SystemExit('demoIpos anchor not found')
+
+          helper_anchor = "];\n\nclass NivecoShell extends StatefulWidget"
+          helper = """;
+
+String _liveDate(dynamic raw) {
+  final value = raw?.toString().trim() ?? '';
+  if (value.isEmpty) return '—';
+  final d = DateTime.tryParse(value);
+  if (d == null) return value;
+  const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  return '${d.day.toString().padLeft(2, '0')} ${months[d.month - 1]} ${d.year}';
+}
+
+String _liveIssueSize(dynamic raw) {
+  if (raw == null) return '—';
+  final n = num.tryParse(raw.toString());
+  if (n == null || n <= 0) return raw.toString();
+  if (n >= 10000000) return '₹${(n / 10000000).toStringAsFixed(0)} Cr';
+  return '₹${n.toStringAsFixed(0)}';
+}
+
+Ipo _ipoFromLive(Map<String, dynamic> x) {
+  final rawStatus = (x['status'] ?? '').toString().toLowerCase();
+  final status = rawStatus == 'listed' ? 'Listed' : rawStatus == 'upcoming' ? 'Upcoming' : 'Open';
+  final typeRaw = (x['issueType'] ?? 'Mainboard').toString().toUpperCase();
+  return Ipo(
+    id: (x['id'] ?? x['symbol'] ?? x['company'] ?? '').toString(),
+    name: (x['company'] ?? 'IPO').toString(),
+    type: typeRaw.contains('SME') ? 'SME' : 'MAINBOARD',
+    status: status,
+    priceBand: (x['priceBand'] ?? 'TBA').toString(),
+    lotSize: int.tryParse((x['lotSize'] ?? 0).toString()) ?? 0,
+    subscription: double.tryParse((x['subscription'] ?? 0).toString()) ?? 0,
+    gmp: 0,
+    gmpPct: 0,
+    openDate: _liveDate(x['openDate']),
+    closeDate: _liveDate(x['closeDate']),
+    allotmentDate: _liveDate(x['allotmentDate']),
+    listingDate: _liveDate(x['listingDate']),
+    issueSize: _liveIssueSize(x['issueSize']),
+    listingPrice: int.tryParse((x['listingPrice'] ?? '').toString()),
+  );
+}
+
+class NivecoShell extends StatefulWidget"""
+
+          if '_ipoFromLive(Map<String, dynamic> x)' not in s:
+              if helper_anchor not in s:
+                  raise SystemExit('NivecoShell helper anchor not found')
+              s = s.replace(helper_anchor, helper, 1)
+
+          # Never present fallback demo records as "live".
+          s = s.replace("Text('${tr('Live','લાઇવ')} • ${demoIpos.length} ${tr('IPO records','IPO રેકોર્ડ')}'", "Text('${tr('Live','લાઇવ')} • ${demoIpos.length} ${tr('IPO records','IPO રેકોર્ડ')}'")
+
+          p.write_text(s)
+
+      - name: Commit live runtime wiring
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add flutter_app/lib/main.dart
+          git diff --cached --quiet && exit 0
+          git commit -m "Connect Flutter runtime to live IPO API for real"
+          git push origin flutter-rebuild

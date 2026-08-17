@@ -1,0 +1,46 @@
+name: Refine NIVECO brand header
+
+on:
+  push:
+    branches: [flutter-rebuild]
+    paths:
+      - '.github/workflows/niveco-brand-fix.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  refine-brand:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: flutter-rebuild
+      - name: Make NIVECO header responsive
+        shell: python
+        run: |
+          from pathlib import Path
+          p = Path('flutter_app/lib/main.dart')
+          s = p.read_text()
+
+          # Keep all three E bars exactly the same width.
+          s = s.replace("Rect.fromLTWH(0, (size.height - barHeight) / 2, size.width * .78, barHeight)",
+                        "Rect.fromLTWH(0, (size.height - barHeight) / 2, size.width, barHeight)")
+
+          # Scale the complete brand mark only when the available AppBar width is tight.
+          old_title = "title:NivecoWordmark(dark:widget.dark),actions:[IconButton(onPressed:()=>widget.onThemeChanged(!widget.dark),icon:Icon(widget.dark?Icons.light_mode_outlined:Icons.dark_mode_outlined)),TextButton(onPressed:()=>widget.onLanguageChanged(!widget.gujarati),child:Text(widget.gujarati?'EN':'ગુજરાતી',style:const TextStyle(fontWeight:FontWeight.w700))),const SizedBox(width:4)]"
+          new_title = "title:FittedBox(fit:BoxFit.scaleDown,alignment:Alignment.centerLeft,child:NivecoWordmark(dark:widget.dark)),actions:[IconButton(visualDensity:VisualDensity.compact,onPressed:()=>widget.onThemeChanged(!widget.dark),icon:Icon(widget.dark?Icons.light_mode_outlined:Icons.dark_mode_outlined)),TextButton(style:TextButton.styleFrom(padding:const EdgeInsets.symmetric(horizontal:6),minimumSize:Size.zero,tapTargetSize:MaterialTapTargetSize.shrinkWrap),onPressed:()=>widget.onLanguageChanged(!widget.gujarati),child:Text(widget.gujarati?'EN':'ગુજરાતી',style:const TextStyle(fontWeight:FontWeight.w700))),const SizedBox(width:2)]"
+          if old_title not in s:
+              raise SystemExit('Expected AppBar header pattern not found')
+          s = s.replace(old_title, new_title, 1)
+          s = s.replace("titleSpacing:14", "titleSpacing:8", 1)
+          p.write_text(s)
+
+      - name: Commit responsive header fix
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add flutter_app/lib/main.dart
+          git diff --cached --quiet && exit 0
+          git commit -m "Fix NIVECO header overflow and equalize E bars"
+          git push origin flutter-rebuild

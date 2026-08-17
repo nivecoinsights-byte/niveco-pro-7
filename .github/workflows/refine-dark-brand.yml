@@ -1,0 +1,108 @@
+name: Refine NIVECO Dark Branding
+
+on:
+  push:
+    branches: [flutter-rebuild]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  refine-brand:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: flutter-rebuild
+      - name: Refine wordmark and eye symbol
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path('flutter_app/lib/main.dart')
+          s = p.read_text()
+
+          old = """    return Row(mainAxisSize: MainAxisSize.min, children: [
+      Image.asset('assets/niveco-eye.png', width: 64, height: 64, fit: BoxFit.contain),
+      const SizedBox(width: 8),
+      Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
+        Row(mainAxisSize: MainAxisSize.min, children: [
+          Text('NIV', style: TextStyle(color: ink, fontWeight: FontWeight.w900, letterSpacing: 3, fontSize: 27, height: 1)),
+          Padding(padding: const EdgeInsets.symmetric(horizontal: 3), child: SizedBox(width: 25, height: 27, child: CustomPaint(painter: _ThreeLineEPainter(ink)))),
+          Text('CO', style: TextStyle(color: ink, fontWeight: FontWeight.w900, letterSpacing: 3, fontSize: 27, height: 1)),
+        ]),
+        const SizedBox(height: 5),
+        const Text('IPO & MARKET INSIGHTS', style: TextStyle(fontSize: 9.5, letterSpacing: 1.2, color: Colors.blueGrey, fontWeight: FontWeight.w600)),
+      ]),
+    ]);"""
+
+          new = """    return Row(mainAxisSize: MainAxisSize.min, children: [
+      Container(
+        width: 72,
+        height: 72,
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          boxShadow: dark ? const [
+            BoxShadow(color: Color(0x6600C8FF), blurRadius: 18, spreadRadius: 1),
+            BoxShadow(color: Color(0x33006CFF), blurRadius: 30, spreadRadius: 2),
+          ] : const [],
+        ),
+        child: Image.asset('assets/niveco-eye.png', width: 70, height: 70, fit: BoxFit.contain),
+      ),
+      const SizedBox(width: 10),
+      Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
+        Row(crossAxisAlignment: CrossAxisAlignment.center, mainAxisSize: MainAxisSize.min, children: [
+          Text('NIV', style: TextStyle(color: ink, fontWeight: FontWeight.w900, letterSpacing: 3, fontSize: 27, height: 1)),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 3),
+            child: SizedBox(width: 26, height: 27, child: CustomPaint(painter: _ThreeLineEPainter(ink))),
+          ),
+          Text('CO', style: TextStyle(color: ink, fontWeight: FontWeight.w900, letterSpacing: 3, fontSize: 27, height: 1)),
+        ]),
+        const SizedBox(height: 5),
+        const Text('IPO & MARKET INSIGHTS', style: TextStyle(fontSize: 9.5, letterSpacing: 1.2, color: Colors.blueGrey, fontWeight: FontWeight.w600)),
+      ]),
+    ]);"""
+
+          if old not in s:
+              raise SystemExit('Expected NivecoWordmark block not found')
+          s = s.replace(old, new, 1)
+
+          old2 = """    final p = Paint()..style = PaintingStyle.fill;
+    final barHeight = size.height * .20;
+    p.color = ink;
+    canvas.drawRRect(RRect.fromRectAndRadius(Rect.fromLTWH(0, 0, size.width, barHeight), const Radius.circular(1.2)), p);
+    p.color = const Color(0xFF00CBEA);
+    canvas.drawRRect(RRect.fromRectAndRadius(Rect.fromLTWH(0, (size.height - barHeight) / 2, size.width, barHeight), const Radius.circular(1.2)), p);
+    p.color = ink;
+    canvas.drawRRect(RRect.fromRectAndRadius(Rect.fromLTWH(0, size.height - barHeight, size.width, barHeight), const Radius.circular(1.2)), p);"""
+
+          new2 = """    final p = Paint()..style = PaintingStyle.fill;
+    final barHeight = size.height * .18;
+    final gap = (size.height - (barHeight * 3)) / 2;
+    final radius = Radius.circular(barHeight * .18);
+    final y1 = 0.0;
+    final y2 = barHeight + gap;
+    final y3 = (barHeight + gap) * 2;
+    final barWidth = size.width;
+    p.color = ink;
+    canvas.drawRRect(RRect.fromRectAndRadius(Rect.fromLTWH(0, y1, barWidth, barHeight), radius), p);
+    p.color = const Color(0xFF00CBEA);
+    canvas.drawRRect(RRect.fromRectAndRadius(Rect.fromLTWH(0, y2, barWidth, barHeight), radius), p);
+    p.color = ink;
+    canvas.drawRRect(RRect.fromRectAndRadius(Rect.fromLTWH(0, y3, barWidth, barHeight), radius), p);"""
+
+          if old2 not in s:
+              raise SystemExit('Expected three-line E painter block not found')
+          s = s.replace(old2, new2, 1)
+          p.write_text(s)
+          PY
+      - name: Commit branding refinement
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add flutter_app/lib/main.dart
+          git diff --cached --quiet && exit 0
+          git commit -m "Refine NIVECO dark branding and align three-line E"
+          git push origin flutter-rebuild
