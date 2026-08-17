@@ -1,10 +1,13 @@
-const CACHE="niveco-pro-7-3.3-startup-fix";
+const CACHE="niveco-pro-7-3.4-firebase-auth";
 const APPROVED_EYE="/niveco-eye-transparent.png?v=20260808b";
+const AUTH_BRIDGE="/firebase-auth.js?v=20260817";
 const ASSETS=[
   "/",
   "/index.html",
   "/styles.css?v=7.3.2",
   "/app.js?v=7.3.2",
+  "/config.js?v=7.3",
+  AUTH_BRIDGE,
   "/manifest.webmanifest",
   "/niveco-icon-192.png",
   "/niveco-icon-512.png",
@@ -35,6 +38,12 @@ function patchHtml(html){
   let patched=html
     .replaceAll('assets/icons/niveco-eye-transparent.png',APPROVED_EYE)
     .replaceAll('/assets/icons/niveco-eye-transparent.png',APPROVED_EYE);
+
+  const authScript=`<script src="${AUTH_BRIDGE}" defer></script>`;
+  if(!patched.includes(AUTH_BRIDGE)){
+    if(patched.includes('</body>')) patched=patched.replace('</body>',authScript+'</body>');
+    else patched+=authScript;
+  }
 
   const failsafe=`<script>(function(){var done=false;function openApp(){if(done)return;done=true;var s=document.getElementById('splashScreen');if(s){s.classList.add('hide');setTimeout(function(){if(s&&s.parentNode)s.parentNode.removeChild(s)},450)}}window.addEventListener('error',function(){setTimeout(openApp,50)},{once:true});window.addEventListener('unhandledrejection',function(){setTimeout(openApp,50)},{once:true});document.addEventListener('DOMContentLoaded',function(){setTimeout(openApp,1400)});setTimeout(openApp,2600)})();</script>`;
 
